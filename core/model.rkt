@@ -15,23 +15,19 @@
 
 (struct primary-key (auto-increment) #:transparent)
 
-; If a foreign key specifies *other-model* as a model that doesn't
-; have a primary key, an error is thrown.
-(struct foreign-key (other-model)
-        #:transparent
-        #:guard (lambda (other-model type-name)
-                  (if (has-pk? other-model)
-                      other-model
-                      (error type-name
-                             "foreign-key to model without primary key: ~a"
-                             (model-name other-model)))))
+; Foreign keys will be lazy and checked at runtime.
+(struct foreign-key-base (referenced) #:transparent)
+
+(define-syntax-rule (foreign-key referenced)
+  (foreign-key-base (delay referenced)))
+
+(define (foreign-key-referenced fk)
+  (force (foreign-key-base-referenced fk)))
+
+(define foreign-key? foreign-key-base?)
 
 ; A self key is a foreign key that references the same model it
-; belongs to. Just like the foreign key, the model that has a self key
-; should have a primary key. Sadly, I don't know how to enforce this
-; on the struct constructor, so an error would remain unchecked until
-; the ddl generator attempts to process the model (and then the error
-; message is a bit cryptic).
+; belongs to.
 (struct self-key () #:transparent)
 
 
@@ -65,10 +61,10 @@
   (get-pk-iter (model-fields a-model)))
 
 
-(provide (contract-out
+(provide foreign-key foreign-key?
+         (contract-out
           [struct plain-field ((type string?))]
           [struct primary-key ((auto-increment boolean?))]
-          [struct foreign-key ((other-model model?))]
           [struct self-key ()]
           [struct field ((name string?)
                          (type (or/c plain-field?
@@ -79,7 +75,8 @@
                          (force-id boolean?)
                          (fields (listof field?)))]
           [has-pk? (-> model? boolean?)]
-          [get-pk (-> model? (or/c field? boolean?))]))
+          [get-pk (-> model? (or/c field? boolean?))]
+          [foreign-key-referenced (-> foreign-key? model?)]))
 
 
 (module+ test
