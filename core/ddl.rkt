@@ -2,9 +2,10 @@
 
 ;; Generates ddl strings for models.
 
-(require "../utils.rkt" "model.rkt")
+(require "../utils.rkt" "./model.rkt")
 
-(provide ddl charfield intfield floatfield
+(provide ddl
+         charfield    intfield  floatfield
          booleanfield datefield datetimefield)
 
 
@@ -46,11 +47,11 @@
 
 ; common fields
 ; this oughta be in a sqlite-specific file
-(define charfield (plain-field "varchar"))
-(define intfield (plain-field "int"))
-(define floatfield (plain-field "float"))
-(define booleanfield (plain-field "boolean"))
-(define datefield (plain-field "date"))
+(define charfield     (plain-field "varchar"))
+(define intfield      (plain-field "int"))
+(define floatfield    (plain-field "float"))
+(define booleanfield  (plain-field "boolean"))
+(define datefield     (plain-field "date"))
 (define datetimefield (plain-field "datetime"))
 
 
@@ -62,6 +63,7 @@
          (define bowl (model "bowl" #f
                              (list (field "owner" (foreign-key cat))
                                    (field "size" (plain-field "int")))))
+         (display "TESTING core/ddl.rkt\n\n")
          (display cat)
          (display "\n--\n")
          (display (ddl cat))
@@ -69,4 +71,16 @@
          (display bowl)
          (display "\n--\n")
          (display (ddl bowl))
-         (display "\n"))
+         (display "\n\nTest for cyclical reference\n")
+         (define A (model "A" #t
+                          (list (field "c_rel" (foreign-key C)))))
+         (define B (model "B" #t
+                          (list (field "a_rel" (foreign-key A)))))
+         (define C (model "C" #t
+                          (list (field "b_rel" (foreign-key B)))))
+         (display (ddl A))
+         (display "\n--\n")
+         (display (ddl B))
+         (display "\n--\n")
+         (display (ddl C))
+         (display "\n------------\n"))

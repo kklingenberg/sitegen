@@ -82,14 +82,13 @@
 
 
 (module+ test
-         (define cat (model "cat"
-                            #t
+         (define cat (model "cat" #t
                             (list (field "age" (plain-field "int"))
                                   (field "color" (plain-field "string")))))
-         (define bowl (model "bowl"
-                             #f
+         (define bowl (model "bowl" #f
                              (list (field "owner" (foreign-key cat))
                                    (field "size" (plain-field "float")))))
+         (display "TESTING core/model.rkt\n\n")
          (print cat)
          (display "\nhas-pk?: ")
          (display (has-pk? cat))
@@ -101,4 +100,4 @@
          (display (has-pk? bowl))
          (display "\nshow the bowl-size: ")
          (display (get-field "size" bowl))
-         (display "\n"))
+         (display "\n------------\n"))
