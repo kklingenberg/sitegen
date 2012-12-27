@@ -8,6 +8,8 @@
 ;; The actual model instances (e.g. the rows in each database table)
 ;; will probably end up being simple mutable hash maps.
 
+(require "../utils.rkt")
+
 ; field type constructors
 ; sql encoding is ql's job
 
@@ -54,11 +56,10 @@
   (one-is-pk? (model-fields a-model)))
 
 (define (get-pk a-model)
-  (define (get-pk-iter fields)
-    (cond [(null? fields) #f]
-          [(primary-key? (field-type (car fields))) (car fields)]
-          [else (get-pk-iter (cdr fields))]))
-  (get-pk-iter (model-fields a-model)))
+  (lookup (compose primary-key? field-type) (model-fields a-model)))
+
+(define (get-field name a-model)
+  (lookup (lambda (f) (equal? name (field-name f))) (model-fields a-model)))
 
 
 (provide foreign-key foreign-key?
@@ -76,6 +77,7 @@
                          (fields (listof field?)))]
           [has-pk? (-> model? boolean?)]
           [get-pk (-> model? (or/c field? boolean?))]
+          [get-field (-> string? model? (or/c field? boolean?))]
           [foreign-key-referenced (-> foreign-key? model?)]))
 
 
@@ -91,8 +93,12 @@
          (print cat)
          (display "\nhas-pk?: ")
          (display (has-pk? cat))
+         (display "\nwhich?: ")
+         (display (get-pk cat))
          (display "\n")
          (print bowl)
          (display "\nhas-pk?: ")
          (display (has-pk? bowl))
+         (display "\nshow the bowl-size: ")
+         (display (get-field "size" bowl))
          (display "\n"))
