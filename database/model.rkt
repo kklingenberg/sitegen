@@ -1,17 +1,13 @@
 #lang racket
 
-;; Models and fields, representing the entities of the site. These
-;; entities are the things you display, serialize, build forms for,
-;; save to database, etc. sitegen tries to provide facilities to do
-;; all those.
+;; Models and fields, representing the table in the database.
 
-;; The actual model instances (e.g. the rows in each database table)
+;; The actual model instances (i.e. the rows in each database table)
 ;; will probably end up being simple mutable hash maps.
 
 (require "../utils.rkt")
 
 ; field type constructors
-; sql encoding is ql's job
 
 (struct plain-field (type) #:transparent)
 
@@ -52,6 +48,18 @@
                                       (cons (field "id" (primary-key #t))
                                             fields))])))
 
+(define-syntax define-model
+  (syntax-rules ()
+    [(define-model (name) field fields ...)
+     (define name (model (symbol->string (syntax->datum #'name)) #t
+                         (list field fields ...)))]
+    [(define-model (name force-id) field fields ...)
+     (define name (model (symbol->string (syntax->datum #'name)) force-id
+                         (list field fields ...)))]
+    [(define-model name field fields ...)
+     (define name (model (symbol->string (syntax->datum #'name)) #t
+                         (list field fields ...)))]))
+
 (define (has-pk? a-model)
   (one-is-pk? (model-fields a-model)))
 
@@ -62,7 +70,7 @@
   (lookup (lambda (f) (equal? name (field-name f))) (model-fields a-model)))
 
 
-(provide foreign-key foreign-key?
+(provide define-model foreign-key foreign-key?
          (contract-out
           [struct plain-field ((type string?))]
           [struct primary-key ((auto-increment boolean?))]
@@ -82,12 +90,12 @@
 
 
 (module+ test
-         (define cat (model "cat" #t
-                            (list (field "age" (plain-field "int"))
-                                  (field "color" (plain-field "string")))))
-         (define bowl (model "bowl" #f
-                             (list (field "owner" (foreign-key cat))
-                                   (field "size" (plain-field "float")))))
+         (define-model cat
+           (field "age" (plain-field "int"))
+           (field "color" (plain-field "string")))
+         (define-model (bowl #f)
+           (field "owner" (foreign-key cat))
+           (field "size" (plain-field "float")))
          (display "TESTING core/model.rkt\n\n")
          (print cat)
          (display "\nhas-pk?: ")

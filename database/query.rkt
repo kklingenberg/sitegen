@@ -3,22 +3,22 @@
 ;; Make queries from models.
 
 ;; Examples:
-;; specific cats:      (query cat '(and (<= age 3) (= color "brown")))
-;; great cats:         (query cat '(like name "% the great"))
-;; cats owned by Owen: (query cat '(related owner (= firstname "Owen")))
-;; persons with cats:  (query-related 'owner (query cat))
-;;  with old cats:     (query-related 'owner (query cat '(>= age 9)))
-;;  without cats:      (query-related '(isnot owner) (query cat))
+;; specific cats:      (select-from cat '(and (<= age 3) (= color "brown")))
+;; great cats:         (select-from cat '(like name "% the great"))
+;; cats owned by Owen: (select-from cat '(related owner (= firstname "Owen")))
+;; persons with cats:  (select-related 'owner (select-from cat))
+;;  with old cats:     (select-related 'owner (select-from cat '(>= age 9)))
+;;  without cats:      (select-related '(isnot owner) (select-from cat))
 
 (require "../utils.rkt" "./model.rkt")
 
-(provide query query-related
+(provide select-from select-related
          (contract-out
           [struct qstmt ((model model?)
                          (qstring string?)
                          (params (listof any/c)))]))
 
-; A query is interpreted to a qstmt.
+; A select-from form is interpreted to a qstmt.
 (struct qstmt (model qstring params))
 
 ; simple predicates
@@ -83,7 +83,7 @@
                                 (model-name ref-model) " where "
                                 subquery ")")
                  subparams))
-        (raise-arguments-error 'query
+        (raise-arguments-error 'select-from
                                "field doesn't exist or isn't a foreign key"
                                "field" fieldname
                                "model" (model-name model)))))
@@ -112,7 +112,7 @@
         [(like) (apply like/p (append (parse-args (cdr qexpr)) (list model)))]
         [(related)
          (apply related/p (append (parse-args (cdr qexpr)) (list model)))]
-        [else   (raise-arguments-error 'query
+        [else   (raise-arguments-error 'select-from
                                        "can't apply unknown filter"
                                        "filter" (car qexpr))])))
 
@@ -124,20 +124,33 @@
                   (model-fields model))))
 
 
-(define (begin-query model)
-  (string-append "select " (encode-fields model) " from " (model-name model)))
+; begin-select-from: model -> qstmt
+; begin-select-from: qstmt -> qstmt
+(define (begin-select-from model/query)
+  (cond [(model? model/query)
+         (qstmt model/query (string-append "select " (encode-fields model/query)
+                                           " from " (model-name model/query))
+                '())]
+        [(qstmt? model/query)
+         (qstmt (qstmt-model model/query)
+                (string-append "select "
+                               (encode-fields (qstmt-model model/query))
+                               " from (" (qstmt-qstring model/query) ")")
+                (qstmt-params model/query))]))
 
 
 ; query: model -> qexpr -> qstmt
-(define (query model [qexpr '()])
-  (let ([start (begin-query model)])
-    (cond [(null? qexpr) (qstmt model start '())]
+; query: qstmt -> qexpr -> qstmt
+(define (select-from model/query [qexpr '()])
+  (let* ([start (begin-select-from model/query)]
+         [model (qstmt-model start)])
+    (cond [(null? qexpr) start]
           [else (let* ([stmt (parse-qexpr qexpr model)]
                        [qstring (qstmt-qstring stmt)]
                        [params (qstmt-params stmt)])
                   (qstmt model
-                         (string-append start " where " qstring)
-                         params))])))
+                         (string-append (qstmt-qstring start) " where " qstring)
+                         (append (qstmt-params start) params)))])))
 
 
 ; parse-relexpr: relexpr -> qstmt -> qstmt
@@ -154,24 +167,28 @@
                                             fieldname " from ("
                                             (qstmt-qstring set) "))")
                    (qstmt-params set)))
-          (raise-arguments-error 'query-related
+          (raise-arguments-error 'select-related
                                  "relation doesn't exist"
                                  "related field" fieldname))))
   (cond [(symbol? relexpr) (nest (symbol->string relexpr) "")]
         [(and (list? relexpr) (equal? (car relexpr) 'isnot))
          (nest (symbol->string (cadr relexpr)) " not")]
-        [else (raise-arguments-error 'query-related
+        [else (raise-arguments-error 'select-related
                                      "can't apply unknown relation"
                                      "filter" relexpr)]))
 
 
-; query-related: relexpr -> qstmt -> qexpr -> qstmt
-(define (query-related relexpr superset [filters '()])
-  (let* ([relstmt (parse-relexpr relexpr superset)]
+; select-related: relexpr -> qstmt -> qexpr -> qstmt
+; select-related: relexpr -> model -> qexpr -> qstmt
+(define (select-related relexpr superset [filters '()])
+  (let* ([relstmt (parse-relexpr relexpr
+                                 (cond [(model? superset) (select-from superset)]
+                                       [(qstmt? superset) superset]))]
          [relmodel (qstmt-model relstmt)]
          [partial-stmt (parse-qexpr filters relmodel)])
     (qstmt relmodel
-           (string-append (begin-query relmodel) " where ("
+           (string-append (qstmt-qstring (begin-select-from relmodel)) " where ("
+                          ; relmodel is always a model, so the params are ignored
                           (qstmt-qstring relstmt)
                           (if (null? filters) ""
                               (string-append " and "
@@ -180,35 +197,47 @@
 
 
 (module+ test
-         (define person (model "person" #t
-                               (list (field "firstname"
-                                            (plain-field "string")))))
-         (define cat (model "cat" #t
-                            (list (field "age" (plain-field "int"))
-                                  (field "color" (plain-field "string"))
-                                  (field "owner" (foreign-key person)))))
+         (define-model person
+           (field "firstname" (plain-field "string")))
+         (define-model cat
+           (field "age" (plain-field "int"))
+           (field "color" (plain-field "string"))
+           (field "owner" (foreign-key person)))
+
          (display "TESTING core/query.rkt\n\n")
 
-         (let ([st (query cat '(or (not (< age 3))
-                                   (and (> age 7) (= color "red"))))])
+         (let ([st (select-from cat
+                                '(or (not (< age 3))
+                                     (and (> age 7) (= color "red"))))])
            (print (qstmt-qstring st))
            (print (qstmt-params st)))
          (display "\n--\n")
 
-         (let ([st (query cat '(related owner (= firstname "Owen")))])
+         (let ([st (select-from cat '(related owner (= firstname "Owen")))])
            (print (qstmt-qstring st))
            (print (qstmt-params st)))
          (display "\n--\n")
 
-         (let ([st (query-related 'owner (query cat))])
+         (let ([st (select-from (select-from cat '(> age 3)) '(< age 7))])
            (print (qstmt-qstring st))
            (print (qstmt-params st)))
          (display "\n--\n")
 
-         (let ([st (query-related '(isnot owner)
-                                  (query cat '(and (> age 5)
-                                                   (= color "white")))
-                                  '(= firstname "Bob"))])
+         (let ([st (select-related 'owner cat)])
+           (print (qstmt-qstring st))
+           (print (qstmt-params st)))
+         (display "\n--\n")
+
+         (let ([st (select-related 'owner (select-from cat))])
+           (print (qstmt-qstring st))
+           (print (qstmt-params st)))
+         (display "\n--\n")
+
+         (let ([st (select-related '(isnot owner)
+                                   (select-from cat
+                                                '(and (> age 5)
+                                                      (= color "white")))
+                                   '(= firstname "Bob"))])
            (print (qstmt-qstring st))
            (print (qstmt-params st)))
          (display "\n------------\n"))

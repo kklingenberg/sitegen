@@ -56,13 +56,13 @@
 
 
 (module+ test
-         (define cat (model "cat" #t
-                            (list (field "age" (plain-field "int"))
-                                  (field "color" (plain-field "string"))
-                                  (field "father" (self-key)))))
-         (define bowl (model "bowl" #f
-                             (list (field "owner" (foreign-key cat))
-                                   (field "size" (plain-field "int")))))
+         (define-model cat
+           (field "age" (plain-field "int"))
+           (field "color" (plain-field "string"))
+           (field "father" (self-key)))
+         (define-model (bowl #f)
+           (field "owner" (foreign-key cat))
+           (field "size" (plain-field "int")))
          (display "TESTING core/ddl.rkt\n\n")
          (display cat)
          (display "\n--\n")
@@ -71,13 +71,13 @@
          (display bowl)
          (display "\n--\n")
          (display (ddl bowl))
-         (display "\n\nTest for cyclical reference\n")
-         (define A (model "A" #t
-                          (list (field "c_rel" (foreign-key C)))))
-         (define B (model "B" #t
-                          (list (field "a_rel" (foreign-key A)))))
-         (define C (model "C" #t
-                          (list (field "b_rel" (foreign-key B)))))
+         (display "\n\nTest for cyclical reference\n\n")
+         (define-model A
+           (field "c_rel" (foreign-key C)))
+         (define-model B
+           (field "a_rel" (foreign-key A)))
+         (define-model C
+           (field "b_rel" (foreign-key B)))
          (display (ddl A))
          (display "\n--\n")
          (display (ddl B))
