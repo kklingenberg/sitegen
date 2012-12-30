@@ -51,13 +51,13 @@
 (define-syntax define-model
   (syntax-rules ()
     [(define-model (name) field fields ...)
-     (define name (model (symbol->string (syntax->datum #'name)) #t
+     (define name (model (symbol->string (quote name)) #t
                          (list field fields ...)))]
     [(define-model (name force-id) field fields ...)
-     (define name (model (symbol->string (syntax->datum #'name)) force-id
+     (define name (model (symbol->string (quote name)) force-id
                          (list field fields ...)))]
     [(define-model name field fields ...)
-     (define name (model (symbol->string (syntax->datum #'name)) #t
+     (define name (model (symbol->string (quote name)) #t
                          (list field fields ...)))]))
 
 (define (has-pk? a-model)
