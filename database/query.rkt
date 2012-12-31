@@ -12,7 +12,7 @@
 
 (require "../utils.rkt" "./model.rkt")
 
-(provide select-from select-related
+(provide filters select-from select-related parse-qexpr
          (contract-out
           [struct qstmt ((model model?)
                          (qstring string?)
@@ -20,6 +20,13 @@
 
 ; A select-from form is interpreted to a qstmt.
 (struct qstmt (model qstring params))
+
+; Extract the filters part of a qstmt (i.e. the first "where")
+; filters: qstmt -> string
+(define (filters query)
+  (let* ([qstring (qstmt-qstring query)]
+         [match (regexp-match-positions #rx" where " qstring)])
+    (if match (substring qstring (caar match)) "")))
 
 ; simple predicates
 (define (make-op op)
@@ -204,7 +211,7 @@
            (field "color" (plain-field "string"))
            (field "owner" (foreign-key person)))
 
-         (display "TESTING core/query.rkt\n\n")
+         (display "TESTING database/query.rkt\n\n")
 
          (let ([st (select-from cat
                                 '(or (not (< age 3))

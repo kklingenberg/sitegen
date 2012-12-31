@@ -63,7 +63,9 @@
          (define-model (bowl #f)
            (field "owner" (foreign-key cat))
            (field "size" (plain-field "int")))
-         (display "TESTING core/ddl.rkt\n\n")
+
+         (display "TESTING database/ddl.rkt\n\n")
+
          (display cat)
          (display "\n--\n")
          (display (ddl cat))

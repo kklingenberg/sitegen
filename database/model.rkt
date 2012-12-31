@@ -96,7 +96,9 @@
          (define-model (bowl #f)
            (field "owner" (foreign-key cat))
            (field "size" (plain-field "float")))
-         (display "TESTING core/model.rkt\n\n")
+
+         (display "TESTING database/model.rkt\n\n")
+
          (print cat)
          (display "\nhas-pk?: ")
          (display (has-pk? cat))
