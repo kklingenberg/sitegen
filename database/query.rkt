@@ -12,7 +12,8 @@
 
 (require "../utils.rkt" "./model.rkt")
 
-(provide filters select-from select-related parse-qexpr
+(provide select-from select-related order-by
+         parse-qexpr filters
          (contract-out
           [struct qstmt ((model model?)
                          (qstring string?)
@@ -203,6 +204,21 @@
            (append (qstmt-params relstmt) (qstmt-params partial-stmt)))))
 
 
+; order-by: field -> order -> qstmt -> qstmt
+(define (order-by field order query)
+  (let ([f (get-field (symbol->string field) (qstmt-model query))]
+        [ord (if (equal? order 'asc) "asc" "desc")]
+        [mname (model-name (qstmt-model query))])
+    (if f (qstmt (qstmt-model query)
+                 (string-append (qstmt-qstring query)
+                                " order by " mname "." (field-name f)
+                                " " ord)
+                 (qstmt-params query))
+        (raise-arguments-error 'order-by
+                               "can't order by unknown field"
+                               "field" field))))
+
+
 (module+ test
          (define-model person
            (field "firstname" (plain-field "string")))
@@ -245,6 +261,6 @@
                                                 '(and (> age 5)
                                                       (= color "white")))
                                    '(= firstname "Bob"))])
-           (print (qstmt-qstring st))
+           (print (qstmt-qstring (order-by 'firstname 'asc st)))
            (print (qstmt-params st)))
          (display "\n------------\n"))

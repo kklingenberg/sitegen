@@ -7,6 +7,25 @@
 
 (require "../utils.rkt")
 
+(provide define-model foreign-key foreign-key?
+         (contract-out
+          [struct plain-field ((type string?))]
+          [struct primary-key ((auto-increment boolean?))]
+          [struct self-key ()]
+          [struct field ((name string?)
+                         (type (or/c plain-field?
+                                     primary-key?
+                                     foreign-key?
+                                     self-key?)))]
+          [struct model ((name string?)
+                         (force-id boolean?)
+                         (fields (listof field?)))]
+          [has-pk? (-> model? boolean?)]
+          [get-pk (-> model? (or/c field? boolean?))]
+          [get-field (-> string? model? (or/c field? boolean?))]
+          [foreign-key-referenced (-> foreign-key? model?)]))
+
+
 ; field type constructors
 
 (struct plain-field (type) #:transparent)
@@ -68,25 +87,6 @@
 
 (define (get-field name a-model)
   (lookup (lambda (f) (equal? name (field-name f))) (model-fields a-model)))
-
-
-(provide define-model foreign-key foreign-key?
-         (contract-out
-          [struct plain-field ((type string?))]
-          [struct primary-key ((auto-increment boolean?))]
-          [struct self-key ()]
-          [struct field ((name string?)
-                         (type (or/c plain-field?
-                                     primary-key?
-                                     foreign-key?
-                                     self-key?)))]
-          [struct model ((name string?)
-                         (force-id boolean?)
-                         (fields (listof field?)))]
-          [has-pk? (-> model? boolean?)]
-          [get-pk (-> model? (or/c field? boolean?))]
-          [get-field (-> string? model? (or/c field? boolean?))]
-          [foreign-key-referenced (-> foreign-key? model?)]))
 
 
 (module+ test
