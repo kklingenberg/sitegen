@@ -22,5 +22,5 @@
           (begin
             (set! *default-connection* (force connection))
             *default-connection*)
-          connection))
-  (prep-connection *default-connection*))
+          connection)
+      (prep-connection *default-connection*)))
