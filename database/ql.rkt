@@ -19,9 +19,13 @@
            [conn/st/args (append conn (stmt-string stmt) (stmt-params stmt))])
       (apply query-exec conn/st/args))))
 
-(define save-to     (make-stmt save-to/stmt))
 (define delete      (make-stmt delete/stmt))
 (define delete-from (make-stmt delete-from/stmt))
+
+; If the object exists in database, it'll be updated. If not if will
+; be inserted.
+(define (save-to #:conn [connection #f] model obj)
+  '())
 
 
 ; Attempts to create a table for the specified model.

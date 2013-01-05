@@ -13,7 +13,7 @@
                     (cdr string-list))]))
 
 
-(define (lookup pred col)
-  (cond [(null? col) #f]
-        [(pred (car col)) (car col)]
-        [else (lookup pred (cdr col))]))
+(define (lookup pred lst)
+  (cond [(null? lst) #f]
+        [(pred (car lst)) (car lst)]
+        [else (lookup pred (cdr lst))]))
