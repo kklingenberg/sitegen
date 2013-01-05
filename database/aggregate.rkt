@@ -11,11 +11,11 @@
 ; discarded.
 
 ; count: db -> qstmt -> number
-(define (count #:conn [connection *default-connection*] qs)
+(define (count #:conn [connection #f] qs)
   (let* ([st (string-append "select count(*) from "
                             (model-name (qstmt-model qs))
                             (filters qs))]
-         [conn (if (promise? connection) (force connection) connection)]
+         [conn (prep-connection connection)]
          [conn/st/args (append conn st (qstmt-params qs))])
     (apply query-value conn/st/args)))
 

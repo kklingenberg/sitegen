@@ -4,7 +4,7 @@
 
 (require "./model.rkt" "./query.rkt")
 
-(provide delete delete-from save-to
+(provide delete/stmt delete-from/stmt save-to/stmt
          (contract-out
           [struct stmt ((model model?)
                         (string string?)
@@ -14,20 +14,20 @@
 ; A delete, delete-from or save-to form is interpreted to a stmt.
 (struct stmt (model string params))
 
-; delete: qstmt -> stmt
-(define (delete query)
+; delete/stmt: qstmt -> stmt
+(define (delete/stmt query)
   (let ([model (qstmt-model query)])
     (stmt model
           (string-append "delete from " (model-name model) (filters query))
           (qstmt-params query))))
 
-; delete-from: model -> qexpr -> stmt
-; delete-from: model -> hashmap -> stmt
-(define (delete-from model qexpr/hashmap)
+; delete-from/stmt: model -> qexpr -> stmt
+; delete-from/stmt: model -> hashmap -> stmt
+(define (delete-from/stmt model qexpr/hashmap)
   '())
 
-; save-to: model -> hashmap -> stmt
-(define (save-to model obj)
+; save-to/stmt: model -> hashmap -> stmt
+(define (save-to/stmt model obj)
   '())
 
 (module+ test
@@ -40,17 +40,17 @@
 
          (display "TESTING database/qly.rkt\n\n")
 
-         (let ([s (delete (select-from cat '(= color "red")))])
+         (let ([s (delete/stmt (select-from cat '(= color "red")))])
            (print (stmt-string s))
            (print (stmt-params s)))
          (display "\n--\n")
 
-         (let ([s (delete (select-related 'owner cat))])
+         (let ([s (delete/stmt (select-related 'owner cat))])
            (print (stmt-string s))
            (print (stmt-params s)))
          (display "\n--\n")
 
-         (let ([s (delete (select-from cat))])
+         (let ([s (delete/stmt (select-from cat))])
            (print (stmt-string s))
            (print (stmt-params s)))
          (display "\n--\n"))
