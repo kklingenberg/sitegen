@@ -4,9 +4,7 @@
 
 (require "../utils.rkt" "./model.rkt")
 
-(provide ddl
-         charfield    intfield  floatfield
-         booleanfield datefield datetimefield)
+(provide ddl)
 
 
 (define (fieldtype/encode a-field a-model fks?)
@@ -43,16 +41,6 @@
   (string-append "create table " (model-name a-model)
                  " (" (join ", " (map field-clause (model-fields a-model)))
                  ");"))
-
-
-; common fields
-; this oughta be in a sqlite-specific file
-(define charfield     (plain-field "varchar"))
-(define intfield      (plain-field "int"))
-(define floatfield    (plain-field "float"))
-(define booleanfield  (plain-field "boolean"))
-(define datefield     (plain-field "date"))
-(define datetimefield (plain-field "datetime"))
 
 
 (module+ test

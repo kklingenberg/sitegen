@@ -42,11 +42,29 @@
 
 ; insert-into/stmt: model -> hashmap -> stmt
 (define (insert-into/stmt model obj)
-  '())
+  (let* ([keys (hash-keys obj)]
+         [header (join ", " keys)]
+         [vals (join ", " (map (const "?") keys))]
+         [params (map (lambda (k) (hash-ref obj k)) keys)])
+    (stmt model
+          (string-append "insert into " (model-name model)
+                         " (" header ") values (" vals ")")
+          params)))
 
-; update/stmt: model -> hashmap -> stmt
-(define (update/stmt model obj)
-  '())
+; update/stmt: model -> hashmap -> qexpr -> stmt
+(define (update/stmt model obj [qexpr '()])
+  (let* ([keys (hash-keys obj)]
+         [sets (map (lambda (k) (string-append k " = ?")) keys)]
+         [filter (parse-qexpr qexpr model)]
+         [filter-string (if (null? qexpr) "" 
+                            (string-append " where " (qstmt-qstring filter)))]
+         [args (append (map (lambda (k) (hash-ref obj k)) keys)
+                       (qstmt-params filter))])
+    (stmt model
+          (string-append "update " (model-name model)
+                         " set " (join ", " sets)
+                         filter-string)
+          args)))
 
 
 (module+ test
@@ -82,5 +100,20 @@
          (let ([s (delete-from/stmt cat #hash(("age" . 3) ("color" . "brown")))])
            (print (stmt-string s))
            (print (stmt-params s)))
-         (display "\n--\n"))
+         (display "\n--\n")
 
+         (let ([s (insert-into/stmt cat #hash(("age" . 0) ("color" . "black")))])
+           (print (stmt-string s))
+           (print (stmt-params s)))
+         (display "\n--\n")
+
+         (let ([s (update/stmt cat #hash(("age" . 0) ("owner" . 1))
+                               '(and (= age 3) (= color "brown")))])
+           (print (stmt-string s))
+           (print (stmt-params s)))
+         (display "\n--\n")
+
+         (let ([s (update/stmt cat #hash(("age" . 0)))])
+           (print (stmt-string s))
+           (print (stmt-params s)))
+         (display "\n--\n"))

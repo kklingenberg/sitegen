@@ -23,7 +23,13 @@
           [has-pk? (-> model? boolean?)]
           [get-pk (-> model? (or/c field? boolean?))]
           [get-field (-> string? model? (or/c field? boolean?))]
-          [foreign-key-referenced (-> foreign-key? model?)]))
+          [foreign-key-referenced (-> foreign-key? model?)]
+          [charfield plain-field?]
+          [intfield plain-field?]
+          [floatfield plain-field?]
+          [booleanfield plain-field?]
+          [datefield plain-field?]
+          [datetimefield plain-field?]))
 
 
 ; field type constructors
@@ -87,6 +93,16 @@
 
 (define (get-field name a-model)
   (lookup (lambda (f) (equal? name (field-name f))) (model-fields a-model)))
+
+
+; common fields
+; this oughta be in a sqlite-specific file
+(define charfield     (plain-field "varchar"))
+(define intfield      (plain-field "int"))
+(define floatfield    (plain-field "float"))
+(define booleanfield  (plain-field "boolean"))
+(define datefield     (plain-field "date"))
+(define datetimefield (plain-field "datetime"))
 
 
 (module+ test

@@ -17,10 +17,9 @@
 ; future application. This loses the previous default connection but
 ; it'll have to be for now.
 (define (prep-connection connection)
-  (define (prep conn)
+  (let ([conn (if connection connection *default-connection*)])
     (if (promise? conn)
         (begin
           (set! *default-connection* (force conn))
           *default-connection*)
-        conn))
-  (if connection (prep connection) (prep *default-connection*)))
+        conn)))

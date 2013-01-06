@@ -7,10 +7,11 @@
          "../settings.rkt" "./model.rkt"
          "./query.rkt" "./statement.rkt" "./ddl.rkt" "./aggregate.rkt")
 
-(provide save-to delete delete-from
-         make-table
-         do-transaction
-         all slice get)
+(provide save-to insert-into update delete delete-from ; effects
+         make-table                                    ; ddl
+         do-transaction                                ; atomic operations
+         all slice get                                 ; queries
+         count)                                        ; aggregate functions
 
 
 ; Makes a statement for effects.
@@ -24,16 +25,19 @@
 
 (define delete      (make-stmt delete/stmt))
 (define delete-from (make-stmt delete-from/stmt))
+(define insert-into (make-stmt insert-into/stmt))
+(define update      (make-stmt update/stmt))
 
 ; If the object exists in database, it'll be updated. If not if will
-; be inserted.
+; be inserted. Models without primary key will never cause *save-to*
+; to update a row. For those models, use the *update* procedure.
 (define (save-to #:conn [connection #f] model obj)
   (define (check-row pk-field)
-    (case (count #:conn connection
-                 (select-from model `(= ,(string->symbol (field-name pk-field))
-                                        ,(hash-ref obj (field-name pk-field)))))
-      [(0)  insert-into/stmt]
-      [else update/stmt]))
+    (let ([qexpr `(= ,(string->symbol (field-name pk-field))
+                     ,(hash-ref obj (field-name pk-field)))])
+      (case (count #:conn connection (select-from model qexpr))
+        [(0)  insert-into/stmt]
+        [else (lambda (m o) (update/stmt m o qexpr))])))
   (let* ([pk (get-pk model)]
          [op (cond [(and pk (hash-ref obj (field-name pk) #f)) (check-row pk)]
                    [else insert-into/stmt])])
@@ -69,9 +73,15 @@
     (map hashify (apply query-rows conn/st/args))))
 
 
-; Limits the result rows with a sql LIMIT modifier, and returns them.
-(define (slice #:conn [connection #f] limits qs)
-  '())
+; Limits the result rows with sql LIMIT and OFFSET modifiers, and
+; returns them.
+(define (slice #:conn [connection #f] #:offset offset #:total total qs)
+  (let* ([limits (string-append " limit " (number->string total)
+                                " offset " (number->string offset))]
+         [limited (qstmt (qstmt-model qs)
+                         (string-append (qstmt-qstring qs) limits)
+                         (qstmt-params qs))])
+    (all #:conn connection limited)))
 
 
 ; Gets a single row. If the query returns more than one row or zero
